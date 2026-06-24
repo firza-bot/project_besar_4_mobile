@@ -481,17 +481,20 @@ class _ApiDataScreenState extends State<ApiDataScreen> {
             ],
           ),
           const SizedBox(height: 24),
-          Row(
+          Column(
             children: [
-              CustomButton(
-                label: 'Unggah File',
-                isOutlined: true,
-                icon: Icons.folder_open_rounded,
-                width: 130,
-                onPressed: _pickRealFile,
+              SizedBox(
+                width: double.infinity,
+                child: CustomButton(
+                  label: 'Unggah File',
+                  isOutlined: true,
+                  icon: Icons.folder_open_rounded,
+                  onPressed: _pickRealFile,
+                ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
                 child: CustomButton(
                   label: 'Kirim ke Proses → ${(_selectedSubmissionId != null || _selectedFileName != null) ? 1 : 0}',
                   isLoading: _isActionLoading,
