@@ -18,59 +18,38 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
   final List<_StepData> _steps = [
     _StepData(
       nomor: 1,
-      judul: 'Problem Framing & IPO',
+      judul: 'Problem Framing',
       deskripsi: 'Mendefinisikan masalah, input, proses, dan output yang diharapkan',
       status: StepStatus.belumMulai,
       icon: Icons.crop_free_rounded,
     ),
     _StepData(
       nomor: 2,
-      judul: 'Pendefinisian Model Dataset',
+      judul: 'Dataset Definition',
       deskripsi: 'Menentukan struktur, sumber, dan format dataset yang akan digunakan',
       status: StepStatus.belumMulai,
       icon: Icons.dataset_rounded,
     ),
     _StepData(
       nomor: 3,
-      judul: 'Pemrosesan Data',
+      judul: 'Processing',
       deskripsi: 'Membersihkan, transformasi, dan normalisasi data mentah',
       status: StepStatus.belumMulai,
       icon: Icons.settings_suggest_rounded,
     ),
     _StepData(
       nomor: 4,
-      judul: 'Perencanaan Model & Refining',
+      judul: 'Model Planning',
       deskripsi: 'Memilih arsitektur model dan parameter awal',
       status: StepStatus.belumMulai,
       icon: Icons.architecture_rounded,
     ),
     _StepData(
       nomor: 5,
-      judul: 'Pelatihan Model & Testing',
-      deskripsi: 'Melatih model dengan data training dan melakukan testing',
+      judul: 'Engine Execution',
+      deskripsi: 'Melatih model, evaluasi performa, dan eksekusi engine',
       status: StepStatus.belumMulai,
       icon: Icons.model_training_rounded,
-    ),
-    _StepData(
-      nomor: 6,
-      judul: 'Refining Model',
-      deskripsi: 'Optimasi dan fine-tuning model untuk performa terbaik',
-      status: StepStatus.belumMulai,
-      icon: Icons.tune_rounded,
-    ),
-    _StepData(
-      nomor: 7,
-      judul: 'Materi Komunikasi Teknikal',
-      deskripsi: 'Menyusun dokumentasi teknis dan laporan hasil model',
-      status: StepStatus.belumMulai,
-      icon: Icons.article_rounded,
-    ),
-    _StepData(
-      nomor: 8,
-      judul: 'Materi Komunikasi Manajemen',
-      deskripsi: 'Menyusun presentasi dan ringkasan untuk manajemen',
-      status: StepStatus.belumMulai,
-      icon: Icons.present_to_all_rounded,
     ),
   ];
 
@@ -107,6 +86,62 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Gagal memuat data dari server: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteSubmission(int id) async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.card,
+          title: const Text('Hapus Data', style: TextStyle(color: Colors.white)),
+          content: const Text(
+            'Apakah Anda yakin ingin menghapus data ini beserta seluruh prosesnya secara permanen?',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Batal', style: TextStyle(color: AppColors.textMuted)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+              child: const Text('Hapus', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await ApiService().deleteSubmission(id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✓ Data beserta seluruh proses berhasil dihapus.'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+      setState(() {
+        _selectedSubmission = null;
+      });
+      await _loadSubmissions();
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal menghapus data: $e'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -309,7 +344,7 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Mengolah: ${_selectedSubmission!['sender_name']}',
+                    'Mengolah: ${_selectedSubmission!['title'] ?? _selectedSubmission!['sender_name']}',
                     style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -322,7 +357,14 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
                   },
                   style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(50, 30)),
                   child: const Text('Ganti', style: TextStyle(color: AppColors.primary, fontSize: 12)),
-                )
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 18),
+                  onPressed: () => _deleteSubmission(_selectedSubmission!['id']),
+                  tooltip: 'Hapus Data',
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
               ],
             ),
           ),

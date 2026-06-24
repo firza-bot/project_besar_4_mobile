@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/constants.dart';
 import '../../widgets/feature_card.dart';
+import '../../services/api_service.dart';
 import '../feature0_project/project_screen.dart';
 import '../feature1_api_data/api_data_screen.dart';
 import '../feature2_data_entry/data_entry_screen.dart';
@@ -28,6 +29,12 @@ class _DashboardScreenState extends State<DashboardScreen>
   String _userName = 'Pengguna';
   int _projectCount = 1;
 
+  int _pendingCount = 0;
+  int _processedCount = 0;
+  int _activeStage = 0;
+  String _activeTitle = '';
+  bool _hasActive = false;
+
   // Pipeline Features (Grid 1 to 5, and 8)
   List<_FeatureItem> get _pipelineFeatures => [
         _FeatureItem(
@@ -47,17 +54,17 @@ class _DashboardScreenState extends State<DashboardScreen>
           color: const Color(0xFF7C3AED),
           gridBadge: 'GRID 2',
           statusColor: const Color(0xFF10B981),
-          statsInfo: '5 Data Masuk • 3 Diterima',
+          statsInfo: '$_pendingCount Pending • $_processedCount Diproses',
           screen: const ApiDataScreen(),
         ),
         _FeatureItem(
           icon: Icons.edit_note_rounded,
           title: 'Proses Data Entry',
-          subtitle: 'Jalankan 8 tahap pipeline AI. Problem Framing, Definisi, Pemrosesan, Perencanaan, Training, Refining, hingga Komunikasi Teknikal & Manajemen.',
+          subtitle: 'Jalankan 5 tahap pipeline AI. Problem Framing, Definisi Dataset, Pemrosesan, Perencanaan Model, hingga Engine Execution.',
           color: const Color(0xFF06B6D4),
           gridBadge: 'GRID 3',
           statusColor: const Color(0xFFF59E0B),
-          statsInfo: '8 Tahap Pipeline',
+          statsInfo: _hasActive ? 'Mengolah $_activeTitle: Tahap ${_activeStage + 1}/5' : 'Tidak Ada Antrian Aktif',
           screen: const DataEntryScreen(),
         ),
         _FeatureItem(
@@ -140,12 +147,40 @@ class _DashboardScreenState extends State<DashboardScreen>
       } catch (_) {}
     }
 
+    int pendingCount = 0;
+    int processedCount = 0;
+    int activeStage = 0;
+    String activeTitle = '';
+    bool hasActive = false;
+
+    try {
+      final res = await ApiService().getSubmissions();
+      final List<dynamic> subs = res['submissions'] ?? [];
+      pendingCount = subs.where((s) => s['status'] == 'pending').length;
+      processedCount = subs.where((s) => s['status'] == 'in_progress' || s['status'] == 'completed' || s['status'] == 'sent').length;
+      
+      final activeList = subs.where((s) => s['status'] == 'in_progress').toList();
+      if (activeList.isNotEmpty) {
+        final active = activeList.first;
+        activeTitle = active['title'] ?? 'Dataset';
+        activeStage = active['current_stage'] ?? 0;
+        hasActive = true;
+      }
+    } catch (e) {
+      print('Dashboard loading real-time data failed: $e');
+    }
+
     setState(() {
       _profilePhotoPath = prefs.getString('profile_photo_path');
       final name = prefs.getString('profile_name') ?? 'Pengguna';
       // ambil nama depan saja
       _userName = name.split(' ').first;
       _projectCount = pCount;
+      _pendingCount = pendingCount;
+      _processedCount = processedCount;
+      _activeStage = activeStage;
+      _activeTitle = activeTitle;
+      _hasActive = hasActive;
     });
   }
 

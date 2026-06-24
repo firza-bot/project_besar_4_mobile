@@ -267,6 +267,231 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> approveSubmission(int submissionId) async {
+    final url = Uri.parse('$_baseUrl/api/v2/submissions/$submissionId/approve_stage/');
+    final response = await http.post(
+      url,
+      headers: _headers(),
+      body: jsonEncode({}),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Gagal mengirim data ke proses: ${response.body}');
+    }
+  }
+
+  Future<void> deleteSubmission(int id) async {
+    final url = Uri.parse('$_baseUrl/api/v2/submissions/$id/');
+    final response = await http.delete(url, headers: _headers());
+
+    if (response.statusCode != 204 && response.statusCode != 200) {
+      throw Exception('Gagal menghapus data di server: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> uploadSimulatedFile({
+    required String filename,
+    required String title,
+    required String senderName,
+    required String senderTeam,
+  }) async {
+    final url = Uri.parse('$_baseUrl/api/v2/submissions/');
+    final request = http.MultipartRequest('POST', url);
+
+    request.headers.addAll(_headers());
+    // Remove default application/json content-type since it's multipart
+    request.headers.remove('Content-Type');
+
+    request.fields['title'] = title;
+    request.fields['sender_name'] = senderName;
+    request.fields['sender_team'] = senderTeam;
+
+    // Simulate dummy CSV file content
+    const fileContent = 'id,value\n1,100\n2,200\n3,300';
+    final bytes = utf8.encode(fileContent);
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'source_file',
+        bytes,
+        filename: filename,
+      ),
+    );
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Gagal mengunggah file ke server: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> saveDraft(String submissionId, Map<String, dynamic> draftData) async {
+    final url = Uri.parse('$_baseUrl/api/draft/save');
+    final body = {
+      'submission_id': submissionId,
+      ...draftData,
+    };
+    final response = await http.post(
+      url,
+      headers: _headers(),
+      body: jsonEncode(body),
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Gagal menyimpan draf: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> loadDraft(String submissionId) async {
+    final url = Uri.parse('$_baseUrl/api/draft/load/$submissionId');
+    final response = await http.get(url, headers: _headers());
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Draf tidak ditemukan');
+    }
+  }
+
+  Future<Map<String, dynamic>> loadSubmissionDataset(int submissionId) async {
+    final url = Uri.parse('$_baseUrl/api/dataset/load-submission/$submissionId');
+    final response = await http.get(url, headers: _headers());
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Gagal memuat data dari submission: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> uploadDatasetFile(File file, String datasetName) async {
+    final url = Uri.parse('$_baseUrl/api/dataset/upload');
+    final request = http.MultipartRequest('POST', url);
+    request.headers.addAll(_headers());
+    request.headers.remove('Content-Type');
+    request.fields['dataset_name'] = datasetName;
+    request.files.add(await http.MultipartFile.fromPath('file', file.path));
+    
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Gagal mengunggah dataset: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> runPreprocessing(String datasetId, Map<String, dynamic> params) async {
+    final url = Uri.parse('$_baseUrl/api/process');
+    final body = {
+      'dataset_id': datasetId,
+      ...params,
+    };
+    final response = await http.post(
+      url,
+      headers: _headers(),
+      body: jsonEncode(body),
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Gagal menjalankan preprocessing: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> startModelTraining({
+    required String datasetId,
+    required String targetColumn,
+    required String algorithm,
+    required Map<String, dynamic> hyperparams,
+    required Map<String, dynamic> featureDescriptions,
+    required String problemType,
+    required String systemName,
+    required String requiredFeatures,
+    required Map<String, dynamic> processingConfig,
+  }) async {
+    final url = Uri.parse('$_baseUrl/api/train');
+    final body = {
+      'dataset_id': datasetId,
+      'target_column': targetColumn,
+      'algorithm': algorithm,
+      'parameters': hyperparams,
+      'feature_descriptions': featureDescriptions,
+      'problem_type': problemType,
+      'system_name': systemName,
+      'required_features': requiredFeatures,
+      'processing_config': processingConfig,
+    };
+    final response = await http.post(
+      url,
+      headers: _headers(),
+      body: jsonEncode(body),
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Gagal memulai pelatihan: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> getTrainingStatus(String jobId) async {
+    final url = Uri.parse('$_baseUrl/api/train/status/$jobId');
+    final response = await http.get(url, headers: _headers());
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Gagal memuat status pelatihan: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> getTrainingResult(String jobId) async {
+    final url = Uri.parse('$_baseUrl/api/train/result/$jobId');
+    final response = await http.get(url, headers: _headers());
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Gagal memuat hasil pelatihan: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> uploadRealFile({
+    required String filePath,
+    required String title,
+    required String senderName,
+    required String senderTeam,
+  }) async {
+    final url = Uri.parse('$_baseUrl/api/v2/submissions/');
+    final request = http.MultipartRequest('POST', url);
+    request.headers.addAll(_headers());
+    request.headers.remove('Content-Type');
+
+    request.fields['title'] = title;
+    request.fields['sender_name'] = senderName;
+    request.fields['sender_team'] = senderTeam;
+
+    final file = File(filePath);
+    final filename = file.path.split(Platform.pathSeparator).last;
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'source_file',
+        file.path,
+        filename: filename,
+      ),
+    );
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Gagal mengunggah file ke server: ${response.body}');
+    }
+  }
+
   String _getStageCategory(int stage) {
     const stages = [
       'Planning', // Stage 0
